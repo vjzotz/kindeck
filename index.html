@@ -5,11 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>kindeck</title>
 <link rel="icon" type="image/x-icon" href="lite/assets/favicon.ico">
-<meta name="description" content="kindeck: motor de show control. Elegí tu producto — kindeck lite, kindeck pro o kindeck ai studio.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+/* ==========================================================
+   ESTILOS — paleta de marca de kindeck
+   ========================================================== */
 :root{
   --bg:#0d0e10; --panel:#16171a; --text:#e7e7ea; --muted:#8a8a92;
   --sage:#637e77; --amber:#ff9f0a; --border:#2a2c30;
@@ -21,32 +23,20 @@ body{
   min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;
   padding:24px; text-align:center;
 }
-.logo{ height:44px; width:auto; opacity:0; animation:fadeUp .6s .1s forwards; }
-.eyebrow{
-  font-family:var(--mono); font-size:12px; color:var(--amber); letter-spacing:0.12em;
-  text-transform:uppercase; margin-top:22px; opacity:0; animation:fadeUp .6s .2s forwards;
+.logo{ height:40px; width:auto; opacity:0; animation:fadeUp .6s .1s forwards; }
+p.sub{ font-family:var(--mono); font-size:13px; color:var(--muted); margin-top:20px; max-width:440px; opacity:0; animation:fadeUp .6s .2s forwards; }
+.status{ font-family:var(--mono); font-size:12px; color:var(--muted); margin-top:22px; display:flex; align-items:center; gap:10px; opacity:0; animation:fadeUp .6s .3s forwards; }
+.spin{width:12px;height:12px;border-radius:50%;border:2px solid var(--border); border-top-color:var(--amber); animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.options{ display:flex; gap:14px; margin-top:36px; flex-wrap:wrap; justify-content:center; opacity:0; animation:fadeUp .6s .4s forwards; }
+.opt{
+  font-size:13px; border:1px solid var(--border); color:var(--text); padding:18px 24px; border-radius:2px;
+  transition:.15s; min-width:160px; text-decoration:none; display:flex; flex-direction:column; align-items:center; gap:6px;
+  background: var(--panel);
 }
-h1{ font-family:var(--mono); font-weight:800; font-size:clamp(24px,4vw,34px); margin-top:14px; max-width:640px; line-height:1.2; opacity:0; animation:fadeUp .6s .25s forwards; }
-p.sub{ color:var(--muted); font-size:15px; margin-top:14px; max-width:480px; opacity:0; animation:fadeUp .6s .3s forwards; }
-
-.products{ display:flex; gap:16px; margin-top:44px; flex-wrap:wrap; justify-content:center; max-width:900px; opacity:0; animation:fadeUp .6s .4s forwards; }
-.card{
-  background:var(--panel); border:1px solid var(--border); border-radius:2px;
-  padding:32px 28px; width:230px; text-align:left; text-decoration:none; color:var(--text);
-  transition:.15s; display:flex; flex-direction:column; gap:10px;
-}
-.card.live:hover{ border-color:var(--sage); transform:translateY(-3px); }
-.card .tag{ font-family:var(--mono); font-size:11px; letter-spacing:0.08em; text-transform:uppercase; padding:4px 9px; border-radius:2px; align-self:flex-start; }
-.card.live .tag{ background:var(--amber); color:#1a0f00; font-weight:700; }
-.card.soon .tag{ background:var(--panel); border:1px solid var(--border); color:var(--muted); }
-.card.soon{ opacity:0.55; cursor:default; }
-.card h2{ font-family:var(--mono); font-weight:700; font-size:19px; margin-top:4px; }
-.card p{ color:var(--muted); font-size:13.5px; }
-
-footer{ margin-top:56px; font-family:var(--mono); font-size:11px; color:var(--muted); opacity:0; animation:fadeUp .6s .5s forwards; }
-footer a{ color:var(--muted); }
-footer a:hover{ color:var(--sage); }
-
+.opt .flag{font-size:24px;}
+.opt .name{font-family:var(--mono); font-weight:700; font-size:13px;}
+.opt:hover, .opt:focus-visible{border-color:var(--sage); color:var(--sage); transform:translateY(-2px);}
 @keyframes fadeUp{from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);}}
 @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;} }
 </style>
@@ -54,31 +44,60 @@ footer a:hover{ color:var(--sage); }
 <body>
 
 <img class="logo" src="assets/logo-kindeck-general.svg" alt="kindeck">
-<div class="eyebrow">Motor de show control</div>
-<h1>Un motor, tres formas de usarlo.</h1>
-<p class="sub">Elegí el producto que necesitás para tu show.</p>
+<p class="sub">Detectando tu idioma para mostrarte la versión correcta. También podés elegir manualmente.<br>Detecting your language to show you the right version. You can also choose manually.</p>
 
-<div class="products">
-  <a class="card live" href="lite/index.html">
-    <span class="tag">Disponible</span>
-    <h2>kindeck lite</h2>
-    <p>Doble señal SMPTE/LTC independiente, Offset Playlist y control MIDI. Para shows en vivo.</p>
-  </a>
-  <div class="card soon">
-    <span class="tag">En construcción</span>
-    <h2>kindeck pro</h2>
-    <p>Próximamente.</p>
-  </div>
-  <div class="card soon">
-    <span class="tag">En construcción</span>
-    <h2>kindeck ai studio</h2>
-    <p>Próximamente.</p>
-  </div>
+<div class="status"><span class="spin"></span><span id="status-text">Detectando idioma…</span></div>
+
+<!-- ==========================================================
+     OPCIONES MANUALES
+     ========================================================== -->
+<div class="options">
+  <a class="opt" href="es/index.html" data-lang="es"><span class="flag">🌎</span><span class="name">Español</span></a>
+  <a class="opt" href="en/index.html" data-lang="en"><span class="flag">🇬🇧</span><span class="name">English</span></a>
 </div>
 
-<footer>
-  <a href="mailto:kindeck.admin@gmail.com">kindeck.admin@gmail.com</a>
-</footer>
+<script>
+/* ==========================================================
+   LÓGICA — router de idioma para la raíz de kindeck
+   ========================================================== */
+
+const DEFAULT_TARGET = 'en/index.html'; // a dónde mandar si no matchea nada
+const REDIRECT_DELAY_MS = 900;
+
+let redirected = false;
+
+document.querySelectorAll('.opt').forEach(a => {
+  a.addEventListener('click', () => { redirected = true; });
+});
+
+function goTo(href, statusText) {
+  if (redirected) return;
+  redirected = true;
+  setStatus(statusText);
+  setTimeout(() => { window.location.href = href; }, REDIRECT_DELAY_MS);
+}
+
+function setStatus(text) {
+  const el = document.getElementById('status-text');
+  if (el) el.textContent = text;
+}
+
+function decideByLanguage() {
+  const lang = (navigator.language || 'en').toLowerCase();
+  const opts = document.querySelectorAll('.opt[data-lang]');
+  for (const opt of opts) {
+    if (lang.startsWith(opt.dataset.lang)) {
+      goTo(opt.getAttribute('href'), `Redirigiendo a ${opt.querySelector('.name').textContent.trim()}…`);
+      return;
+    }
+  }
+  goTo(DEFAULT_TARGET, 'Redirecting…');
+}
+
+// Español/inglés no necesita geo-IP (no hay precio de por medio acá, solo
+// idioma) — decide directo por el idioma del navegador.
+decideByLanguage();
+</script>
 
 </body>
 </html>
