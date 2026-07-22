@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>kindeck lite — Motor de Show Control SMPTE + Offset Playlist</title>
+<link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
+<meta name="description" content="kindeck lite: generación y decodificación de LTC real, Offset Playlist multi-clock, disparo MIDI Toggle/Momentary/Separate. Para shows en vivo, sin depender de internet.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0e10;
+    --panel: #16171a;
+    --panel-2: #1c1d21;
+    --border: #2a2c30;
+    --text: #e7e7ea;
+    --muted: #8a8a92;
+    --sage: #637e77;
+    --sage-dark: #485654;
+    --amber: #ff9f0a;
+    --green: #00ff00;
+    --cyan: #00e0ff;
+    --danger: #ff453a;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- NAV ---------- */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(13, 14, 16, 0.88);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { font-family: var(--mono); font-weight: 800; font-size: 18px; letter-spacing: -0.02em; }
+  .brand-logo { height: 30px; width: auto; display: block; }
+  footer .brand-logo { height: 24px; }
+  .brand span { color: var(--sage); }
+  nav ul { list-style: none; display: flex; gap: 32px; }
+  nav ul a { font-size: 14px; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+  nav ul a:hover { color: var(--text); }
+  .nav-cta {
+    background: var(--sage); color: #0a1210; font-family: var(--mono); font-weight: 700;
+    font-size: 13px; padding: 9px 18px; border-radius: 2px; text-decoration: none;
+    letter-spacing: 0.02em;
+  }
+  .nav-links-mobile-hide { display: flex; }
+  @media (max-width: 720px) { .nav-links-mobile-hide { display: none; } }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    padding: 96px 0 80px;
+    border-bottom: 1px solid var(--border);
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(99, 126, 119, 0.16), transparent);
+  }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; color: var(--amber); letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+  .hero h1 {
+    font-family: var(--mono); font-weight: 800; font-size: clamp(34px, 5.2vw, 58px);
+    line-height: 1.08; letter-spacing: -0.02em; max-width: 820px; margin-bottom: 22px;
+  }
+  .hero h1 .accent { color: var(--sage); }
+  .hero p.lede {
+    font-size: 18px; color: var(--muted); max-width: 560px; margin-bottom: 36px;
+  }
+  .hero-ctas { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 64px; }
+  .btn-primary {
+    background: var(--amber); color: #1a0f00; font-weight: 700; font-size: 15px;
+    padding: 14px 28px; border-radius: 2px; text-decoration: none; display: inline-block;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(255, 159, 10, 0.25); }
+  .btn-secondary {
+    border: 1px solid var(--border); color: var(--text); font-weight: 600; font-size: 15px;
+    padding: 14px 28px; border-radius: 2px; text-decoration: none; display: inline-block;
+    transition: border-color 0.15s;
+  }
+  .btn-secondary:hover { border-color: var(--sage); }
+
+  /* Signature: live SMPTE clock readout */
+  .clock-unit {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 2px;
+    padding: 20px 24px; display: inline-block;
+  }
+  .clock-unit .label {
+    font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.1em;
+    margin-bottom: 10px; display: flex; justify-content: space-between; text-transform: uppercase;
+  }
+  .clock-unit .mode-dot { display: inline-flex; align-items: center; gap: 6px; }
+  .clock-unit .mode-dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+  .clock-digits {
+    font-family: var(--mono); font-weight: 700; font-size: clamp(30px, 5vw, 44px);
+    color: var(--green); letter-spacing: 0.02em; text-shadow: 0 0 20px rgba(0,255,0,0.25);
+  }
+  .clock-digits .dim { opacity: 0.28; }
+  .hero-clocks { display: flex; gap: 16px; flex-wrap: wrap; }
+  .clock-unit.cyan .clock-digits { color: var(--cyan); text-shadow: 0 0 20px rgba(0,224,255,0.25); }
+  .clock-unit.cyan .mode-dot::before { background: var(--cyan); }
+
+  /* ---------- SECTION SHELL ---------- */
+  section { padding: 88px 0; border-bottom: 1px solid var(--border); }
+  .section-head { max-width: 640px; margin-bottom: 56px; }
+  .section-tag {
+    font-family: var(--mono); font-size: 12px; color: var(--sage); letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  h2 { font-family: var(--mono); font-weight: 700; font-size: clamp(26px, 3.4vw, 36px); letter-spacing: -0.01em; margin-bottom: 14px; }
+  .section-head p { color: var(--muted); font-size: 16px; }
+
+  /* ---------- FEATURES (as CUEs, matching the product's own Playlist concept) ---------- */
+  .cue-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .cue {
+    background: var(--panel); padding: 32px 28px; position: relative;
+  }
+  .cue-num {
+    font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 18px; letter-spacing: 0.05em;
+  }
+  .cue-num b { color: var(--amber); }
+  .cue h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .cue p { color: var(--muted); font-size: 14.5px; }
+  .cue p strong { color: var(--sage); font-weight: 700; }
+
+  /* ---------- SCREENSHOTS: real product interface ---------- */
+  .screenshot-block {
+    background: #0a0a0b; border: 1px solid var(--border); border-radius: 2px; overflow: hidden;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6); margin-bottom: 24px;
+  }
+  .screenshot-block img { display: block; width: 100%; height: auto; }
+  .screenshot-caption {
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted); padding: 14px 18px;
+    border-top: 1px solid var(--border);
+  }
+  .screenshot-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+  .screenshot-grid.two-col { grid-template-columns: 1fr 1fr; }
+  @media (max-width: 780px) { .screenshot-grid.two-col { grid-template-columns: 1fr; } }
+
+  .inline-link { color: var(--sage); text-decoration: none; font-weight: 600; white-space: nowrap; }
+  .inline-link:hover { text-decoration: underline; }
+
+  .midi-modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 48px; }
+  .midi-mode { background: var(--panel); padding: 26px 24px; }
+  .midi-mode-name { font-family: var(--mono); font-weight: 700; font-size: 16px; color: var(--amber); margin-bottom: 10px; }
+  .midi-mode p { color: var(--muted); font-size: 14.5px; }
+  .screenshot-block.small { max-width: 420px; }
+  .screenshot-block.small img { background: #000; }
+
+  /* ---------- PRICING ---------- */
+  .price-card {
+    max-width: 460px; margin: 0 auto; background: var(--panel); border: 1px solid var(--sage);
+    border-radius: 2px; padding: 44px 40px; text-align: center;
+    box-shadow: 0 0 0 1px rgba(99,126,119,0.15), 0 30px 60px -30px rgba(99,126,119,0.3);
+  }
+  .price-card .tier { font-family: var(--mono); font-size: 13px; color: var(--sage); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 18px; }
+  .launch-badge { display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bg); background: var(--amber); padding: 5px 12px; border-radius: 2px; margin-bottom: 16px; }
+  .amount-regular { display: block; font-family: var(--mono); font-size: 18px; color: var(--muted); text-decoration: line-through; text-decoration-color: var(--danger); margin-bottom: 4px; }
+  .price-card .amount { font-family: var(--mono); font-weight: 800; font-size: 52px; margin-bottom: 6px; }
+  .price-card .amount sup { font-size: 20px; color: var(--muted); font-weight: 500; }
+  .price-card .cadence { color: var(--muted); font-size: 14px; margin-bottom: 8px; }
+  .launch-deadline { font-family: var(--mono); font-size: 12.5px; color: var(--amber); margin-bottom: 8px; }
+  .price-list { list-style: none; text-align: left; margin-top: 24px; margin-bottom: 32px; }
+  .price-list li { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14.5px; display: flex; gap: 10px; }
+  .price-list li::before { content: '✓'; color: var(--sage); font-weight: 700; }
+  .price-list li:last-child { border-bottom: none; }
+
+  /* ---------- FAQ ---------- */
+  details {
+    border-bottom: 1px solid var(--border); padding: 22px 0;
+  }
+  summary {
+    cursor: pointer; font-weight: 600; font-size: 16px; list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; font-family: var(--mono); color: var(--sage); font-size: 20px; }
+  details[open] summary::after { content: '–'; }
+  details p { color: var(--muted); margin-top: 14px; font-size: 15px; max-width: 640px; }
+
+  /* ---------- FOOTER ---------- */
+  footer { padding: 48px 0; }
+  footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+  footer .brand { font-size: 14px; }
+  footer .foot-links { display: flex; gap: 24px; font-size: 13px; color: var(--muted); }
+  footer .foot-links a { text-decoration: none; }
+  footer .foot-links a:hover { color: var(--text); }
+  .region-switch { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 32px; padding-top: 32px; border-top: 1px solid var(--border); }
+  .region-switch a, .region-switch span { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; padding: 6px 12px; border: 1px solid var(--border); text-decoration: none; color: var(--muted); }
+  .region-switch a:hover { border-color: var(--sage); color: var(--sage); }
+  .region-switch span.current { color: var(--text); border-color: var(--sage); }
+
+  @media (max-width: 640px) {
+    section { padding: 56px 0; }
+    .hero { padding: 64px 0 48px; }
+    .app-mock .dual-clocks { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><img src="../assets/kindeck_lite_logo_full.png" alt="kindeck lite" class="brand-logo"></div>
+    <ul class="nav-links-mobile-hide">
+      <li><a href="#features">Qué hace</a></li>
+      <li><a href="#midi">MIDI</a></li>
+      <li><a href="#descarga">Descargar</a></li>
+      <li><a href="#interfaz">Interfaz</a></li>
+      <li><a href="#precio">Precio</a></li>
+      <li><a href="#faq">Preguntas</a></li>
+    </ul>
+    <a href="#precio" class="nav-cta">Comprar</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Motor de show control para vivo</div>
+    <h1>Dos señales SMPTE independientes, <span class="accent">generadas en vivo</span>, cada una con su propio playlist.</h1>
+    <p class="lede">kindeck lite genera y decodifica LTC real en tiempo real — sin pistas de audio que armar de antemano. Dos cadenas de señal completamente independientes, cada una con su propio Offset Playlist, y disparo MIDI desde tu propio controlador.</p>
+    <div class="hero-ctas">
+      <a href="#precio" class="btn-primary">Conseguir kindeck lite</a>
+      <a href="#descarga" class="btn-secondary">Descargar prueba (2h gratis)</a>
+    </div>
+
+    <div class="hero-clocks">
+      <div class="clock-unit">
+        <div class="label"><span>SMPTE 1</span><span class="mode-dot">LOCK</span></div>
+        <div class="clock-digits" id="clockA">01<span class="dim">:</span>02<span class="dim">:</span>34<span class="dim">:</span>12</div>
+      </div>
+      <div class="clock-unit cyan">
+        <div class="label"><span>SMPTE 2</span><span class="mode-dot">LOCK</span></div>
+        <div class="clock-digits" id="clockB">00<span class="dim">:</span>47<span class="dim">:</span>09<span class="dim">:</span>03</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="descarga">
+  <div class="wrap">
+    <div class="section-head" style="margin-left:auto;margin-right:auto;text-align:center;">
+      <div class="section-tag" style="justify-content:center;display:block;">Descarga</div>
+      <h2>Probalo antes de comprar.</h2>
+      <p style="margin:0 auto;">Instalador para Windows 10. 2 horas de prueba gratis, sin necesidad de cuenta ni tarjeta.</p>
+    </div>
+    <div style="text-align:center;">
+      <a href="../downloads/kindeck-lite-1.0-setup.exe" class="btn-primary" download>Descargar kindeck lite v1.0</a>
+      <div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:14px;">kindeck-lite-1.0-setup.exe · 38.6 MB · Windows 10</div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">Qué hace</div>
+      <h2>Seis funciones, cada una haciendo un solo trabajo bien.</h2>
+      <p>Nada de menús escondidos ni configuración innecesaria — lo que ves es lo que corre en el show.</p>
+    </div>
+    <div class="cue-grid">
+      <div class="cue">
+        <div class="cue-num">CUE <b>01</b> · LTC</div>
+        <h3>Timecode generado en vivo</h3>
+        <p>LTC real, generado y decodificado por el software en el momento — no hace falta traer una pista de audio con timecode pregrabado. Lo que corre en el show, lo genera kindeck. Frame rate a elección — 23.976, 24, 25, 29.97 NDF/DF o 30 — con Drop Frame real, el mismo estándar que usan los generadores de referencia de la industria.</p>
+      </div>
+      <div class="cue">
+        <div class="cue-num">CUE <b>02</b> · Doble señal</div>
+        <h3>Dos cadenas, completamente separadas</h3>
+        <p>SMPTE 1 y SMPTE 2 no comparten nada — cada una con su propio Offset Playlist, su propio modo, y su propia configuración de audio. Dos shows independientes corriendo en paralelo si hace falta.</p>
+      </div>
+      <div class="cue">
+        <div class="cue-num">CUE <b>03</b> · Audio</div>
+        <h3>Con placa real o 100% interno, vos elegís</h3>
+        <p><strong>Show grande, con interfaz de audio:</strong> cada señal SMPTE elige su propio driver ASIO y dispositivo — la latencia que un show en vivo exige, sin compartir un driver genérico entre las dos. <strong>Todo en la misma compu:</strong> sin placa física, ruteando por un cable de audio virtual, para manejar triggers locales y controlar otro software desde la misma máquina. Sample rate configurable (44.1k/48k/96k/192kHz o custom), o automático.</p>
+      </div>
+      <div class="cue">
+        <div class="cue-num">CUE <b>04</b> · MIDI</div>
+        <h3>Tu controlador, tus reglas</h3>
+        <p>Clickeás el botón que querés mapear en la app, tocás la nota, listo. Tres modos de disparo distintos — <a href="#midi" class="inline-link">ver el detalle abajo ↓</a></p>
+      </div>
+      <div class="cue">
+        <div class="cue-num">CUE <b>05</b> · Portable</div>
+        <h3>Tu show, no tu máquina</h3>
+        <p>Los mapeos MIDI y el modo de reloj quedan guardados en el archivo del show, no en la PC. Abrís el mismo show en otra computadora y ya está todo como lo dejaste — y si intentás cerrar con cambios sin guardar, te avisa antes de perder nada.</p>
+      </div>
+      <div class="cue">
+        <div class="cue-num">CUE <b>06</b> · Licencia</div>
+        <h3>Sin depender de la conexión</h3>
+        <p>Se activa una vez, online, y después funciona sin internet — con un margen de 30 días antes de pedir reconectar. Un show no se corta por un problema de señal.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="midi">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">MIDI</div>
+      <h2>Tres formas de disparar, elegís vos cuál.</h2>
+      <p>Sin menú de configuración: clickeás el botón que querés mapear directo en la Playlist, tocás la nota en tu controlador, y queda.</p>
+    </div>
+
+    <div class="midi-modes">
+      <div class="midi-mode">
+        <div class="midi-mode-name">Toggle</div>
+        <p>Una sola nota alterna entre Play y Pause, según el estado real del cue en ese momento.</p>
+      </div>
+      <div class="midi-mode">
+        <div class="midi-mode-name">Momentary</div>
+        <p>El piano real: mantenida = play, soltada = pausa. Ideal para pasajes que solo querés que corran mientras el dedo está sobre el pad.</p>
+      </div>
+      <div class="midi-mode">
+        <div class="midi-mode-name">Separate</div>
+        <p>Cada acción — Play, Pause, Stop — con su propia nota dedicada, sin alternar nada.</p>
+      </div>
+    </div>
+
+    <div class="screenshot-grid two-col">
+      <div class="screenshot-block">
+        <img src="../assets/screenshot-midi-overlay.png" alt="kindeck lite en modo MIDI Learn: los botones mapeables se pintan de verde directo sobre la Playlist">
+        <div class="screenshot-caption">MIDI Learn: los botones mapeables se pintan directo sobre la Playlist — sin ir a buscar un menú aparte.</div>
+      </div>
+      <div class="screenshot-block">
+        <img src="../assets/screenshot-midi-learn.png" alt="Ventana de MIDI Learn de kindeck lite mostrando el modo de cada cue y la lista de mapeos actuales">
+        <div class="screenshot-caption">Cada cue con su propio modo, y la lista completa de qué nota dispara qué, siempre a la vista.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="interfaz">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">La interfaz</div>
+      <h2>Todo lo que necesitás ver, y nada más.</h2>
+      <p>Panel oscuro, pensado para cabina de control — sin distracciones, con la info del show siempre a la vista.</p>
+    </div>
+
+    <div class="screenshot-block">
+      <img src="../assets/screenshot-main.png" alt="Ventana principal de kindeck lite: dos relojes SMPTE independientes y el Offset Playlist de cada uno">
+      <div class="screenshot-caption">Dos señales SMPTE, dos playlists, un solo panel.</div>
+    </div>
+
+    <div class="screenshot-grid">
+      <div class="screenshot-block small">
+        <img src="../assets/screenshot-preferences.png" alt="Preferencias SMPTE de kindeck lite mostrando configuración ASIO independiente para cada señal">
+        <div class="screenshot-caption">Driver, dispositivo y canal ASIO — configurados por separado para cada una de las dos señales.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="precio">
+  <div class="wrap">
+    <div class="section-head" style="margin-left:auto;margin-right:auto;text-align:center;">
+      <div class="section-tag" style="justify-content:center;display:block;">Precio</div>
+      <h2>Una licencia, un pago, tuya para siempre.</h2>
+      <p style="margin:0 auto;">Sin suscripción. Activación online instantánea, se factura desde Argentina.</p>
+    </div>
+
+    <div class="price-card">
+      <div class="tier">kindeck lite</div>
+      <div id="launch-badge" class="launch-badge" style="display:none;">Early Bird</div>
+      <span id="price-regular" class="amount-regular" style="display:none;"></span>
+      <div class="amount" id="price-main"><sup>$</sup>XX.XXX</div>
+      <div class="cadence">pago único · ARS</div>
+      <div id="launch-deadline" class="launch-deadline" style="display:none;"></div>
+      <ul class="price-list">
+        <li>Licencia perpetua para 1 máquina</li>
+        <li>LTC real (generador + decodificador)</li>
+        <li>Offset Playlist sin límite de cues</li>
+        <li>MIDI: Toggle, Momentary, Separate</li>
+        <li>Activación y soporte por email</li>
+        <li>Podés mover la licencia a otra PC cuando quieras</li>
+      </ul>
+      <a href="#" class="btn-primary" style="width:100%;">Comprar kindeck lite</a>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  // ======================================================================
+  // CONFIG DE PRECIO — editar acá cuando se confirmen los datos reales.
+  // ======================================================================
+  var PRECIO_REGULAR_ARS = 168000;      // precio de lista, queda fijo después del lanzamiento
+  var DESCUENTO_LANZAMIENTO = 0.25;     // 25% off durante la promo de lanzamiento
+
+  // TODO: ⚠️ FECHA PLACEHOLDER — reemplazar por la fecha límite real antes de publicar.
+  // Formato: 'AAAA-MM-DDTHH:MM:SS-03:00' (hora de Argentina)
+  // Nota: esta fecha es solo interna, para que el precio vuelva solo al
+  // valor de lista. No se muestra al visitante (se usa copy genérico
+  // "Early Bird — por tiempo limitado" en vez de la fecha exacta).
+  var FECHA_LIMITE_PROMO = new Date('2026-08-31T23:59:59-03:00');
+  // ======================================================================
+
+  function formatARS(n) {
+    return Math.round(n).toLocaleString('es-AR');
+  }
+
+  var precioPromo = PRECIO_REGULAR_ARS * (1 - DESCUENTO_LANZAMIENTO);
+  var enPromo = new Date() < FECHA_LIMITE_PROMO;
+
+  var elMain = document.getElementById('price-main');
+  var elRegular = document.getElementById('price-regular');
+  var elBadge = document.getElementById('launch-badge');
+  var elDeadline = document.getElementById('launch-deadline');
+
+  if (enPromo) {
+    elMain.innerHTML = '<sup>$</sup>' + formatARS(precioPromo);
+    elRegular.textContent = '$' + formatARS(PRECIO_REGULAR_ARS);
+    elRegular.style.display = 'block';
+    elBadge.style.display = 'inline-block';
+
+    elDeadline.textContent = 'Precio Early Bird — por tiempo limitado.';
+    elDeadline.style.display = 'block';
+  } else {
+    elMain.innerHTML = '<sup>$</sup>' + formatARS(PRECIO_REGULAR_ARS);
+  }
+})();
+</script>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="section-tag">FAQ</div>
+      <h2>Preguntas frecuentes</h2>
+    </div>
+
+    <details open>
+      <summary>¿Necesito internet para usar kindeck lite en el show?</summary>
+      <p>No. Se activa una vez, online, y después funciona sin conexión. Cada tanto confirma la licencia en segundo plano si hay wifi disponible, pero tolera hasta 30 días sin poder hacerlo antes de pedir reconectar — pensado para eventos masivos, festivales y locaciones donde la conexión no es estable.</p>
+    </details>
+    <details>
+      <summary>¿Funciona con cualquier controlador MIDI?</summary>
+      <p>Sí — cualquier controlador que hable MIDI estándar (pads, teclados, superficies de control). No hace falta configurar nada de antemano: elegís tu dispositivo, clickeás el botón que querés mapear en la app, y tocás la nota.</p>
+    </details>
+    <details>
+      <summary>¿Puedo pasar la licencia a otra computadora?</summary>
+      <p>Sí, en cualquier momento — desactivás la máquina actual desde el propio programa y activás en la nueva con el mismo código, sin tener que escribirnos.</p>
+    </details>
+    <details>
+      <summary>¿En qué sistema operativo corre?</summary>
+      <p>Windows 10, con instalador y asistente de configuración.</p>
+    </details>
+    <details>
+      <summary>¿Necesito una PC potente para correrlo?</summary>
+      <p>No. kindeck lite no procesa video ni usa GPU — el trabajo real es generar y decodificar una señal de audio, así que corre fluido en cualquier PC con Windows 10 razonablemente moderna. Funciona en dos escenarios: con control externo profesional, usando una placa de audio con drivers ASIO reales para la menor latencia posible; o en modo interno, sin placa física, ruteando a través de un cable de audio virtual — ahí funciona confirmado con WASAPI, DirectSound y MME además de ASIO.</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><img src="../assets/kindeck_lite_logo_full.png" alt="kindeck lite" class="brand-logo"></div>
+    <div class="foot-links">
+      <a href="mailto:kindeck.admin@gmail.com">kindeck.admin@gmail.com</a>
+      <a href="#faq">Preguntas frecuentes</a>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="region-switch">
+      <span class="current">🇦🇷 Argentina · ARS</span>
+      <a href="../latam/index.html">🌎 Latinoamérica · USD</a>
+      <a href="../en/index.html">🇬🇧 English · USD</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Live-running SMPTE clocks in the hero, matching the app's own dual-clock display
+  function pad(n) { return String(n).padStart(2, '0'); }
+  let frameA = 3 * 3600 * 30 + 2 * 60 * 30 + 34 * 30 + 12;
+  let frameB = 47 * 60 * 30 + 9 * 30 + 3;
+  const fps = 30;
+
+  function fmt(totalFrames) {
+    const h = Math.floor(totalFrames / (3600 * fps)) % 24;
+    const m = Math.floor(totalFrames / (60 * fps)) % 60;
+    const s = Math.floor(totalFrames / fps) % 60;
+    const f = totalFrames % fps;
+    return `${pad(h)}<span class="dim">:</span>${pad(m)}<span class="dim">:</span>${pad(s)}<span class="dim">:</span>${pad(f)}`;
+  }
+
+  const elA = document.getElementById('clockA');
+  const elB = document.getElementById('clockB');
+  if (elA && elB && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    setInterval(() => {
+      frameA++; frameB++;
+      elA.innerHTML = fmt(frameA);
+      elB.innerHTML = fmt(frameB);
+    }, 1000 / fps);
+  }
+</script>
+
+</body>
+</html>
